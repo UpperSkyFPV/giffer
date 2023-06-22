@@ -5,27 +5,31 @@
 
 namespace uppr::gif {
 
-// Finds all pixels that have changed from the previous image and
-// moves them to the fromt of th buffer.
-// This allows us to build a palette optimized for the colors of the
-// changed pixels only.
+// === prototypes ===
+
+/// Finds all pixels that have changed from the previous image and moves them to
+/// the fromt of th buffer. This allows us to build a palette optimized for the
+/// colors of the changed pixels only.
 auto pick_changed_pixels(u8 const *last_frame, u8 *frame, usize num_pixels)
     -> int;
 
-// Implements Floyd-Steinberg dithering, writes palette value to alpha
+/// Implements Floyd-Steinberg dithering, writes palette value to alpha
 void dither_image(u8 const *last_frame, u8 const *next_frame, u8 *out_frame,
                   usize width, usize height, Palette &pal);
 
-// Picks palette colors for the image using simple thresholding, no dithering
+/// Picks palette colors for the image using simple thresholding, no dithering
 void threshold_image(u8 const *last_frame, u8 const *next_frame, u8 *out_frame,
                      usize width, usize height, Palette &pal);
 
+/// Makes a copy of the given image.
 auto copy_image(u8 const *src, usize image_size) -> std::unique_ptr<u8[]> {
     auto destroyable_image = std::make_unique<u8[]>(image_size);
     std::ranges::copy(std::span{src, image_size}, destroyable_image.get());
 
     return destroyable_image;
 }
+
+// === pallete methods ===
 
 Palette::Palette(u8 const *last_frame, u8 const *next_frame, usize width,
                  usize height, int bit_depth, bool build_for_dither)
@@ -65,6 +69,8 @@ void Palette::write(FILE *f) const {
         fputc(static_cast<int>(b[i]), f);
     }
 }
+
+// === implementations ===
 
 auto pick_changed_pixels(u8 const *last_frame, u8 *frame, usize num_pixels)
     -> int {
@@ -217,6 +223,8 @@ void threshold_image(u8 const *last_frame, u8 const *next_frame, u8 *out_frame,
     }
 }
 
+// === BitStatus methods ===
+
 void BitStatus::write_chunk(FILE *f) {
     fputc(static_cast<int>(chunk_index), f);
     fwrite(chunk.data(), 1, chunk_index, f);
@@ -235,17 +243,15 @@ void BitStatus::write_code(FILE *f, u32 code, u32 length) {
     }
 }
 
-// The LZW dictionary is a 256-ary tree constructed as the file is encoded,
-// this is one node
+// === compression handling ===
+
+/// The LZW dictionary is a 256-ary tree constructed as the file is encoded,
+/// this is one node of it.
 struct GifLzwNode {
     array<u16, 256> next;
 };
 
-// write the image header, LZW-compress and write out the image
-void write_lzw_image(FILE *f, u8 const *image, usize left, usize top,
-                     usize width, usize height, usize delay,
-                     Palette const &pal);
-
+/// write the image header, LZW-compress and write out the image
 void write_lzw_image(FILE *f, u8 const *image, usize left, usize top,
                      usize width, usize height, usize delay,
                      Palette const &pal) {
@@ -353,63 +359,7 @@ void write_lzw_image(FILE *f, u8 const *image, usize left, usize top,
     fputc(0, f); // image block terminator
 }
 
-auto begin(Writer &writer, const char *filename, usize width, usize height,
-           usize delay, int bit_depth, bool dither) -> bool {
-    writer.f = nullptr;
-    FILE *f{};
-
-#if defined(_MSC_VER) && (_MSC_VER >= 1400)
-    fopen_s(&f, filename, "wb");
-#else
-    f = fopen(filename, "wb");
-#endif
-    if (!f) return false;
-
-    // allocate
-    writer.old_image = std::make_unique<u8[]>(width * height * 4);
-    writer.f = Writer::File{f, [](FILE *f) { fclose(f); }};
-
-    fputs("GIF89a", writer.f.get());
-
-    // screen descriptor
-    fputc(static_cast<int>(width & 0xff), writer.f.get());
-    fputc(static_cast<int>((width >> 8) & 0xff), writer.f.get());
-    fputc(static_cast<int>(height & 0xff), writer.f.get());
-    fputc(static_cast<int>((height >> 8) & 0xff), writer.f.get());
-
-    // there is an unsorted global color table of 2 entries
-    fputc(0xf0, writer.f.get());
-    fputc(0, writer.f.get()); // background color
-    // pixels are square (we need to specify this because it's 1989)
-    fputc(0, writer.f.get());
-
-    // now the "global" palette (really just a dummy palette)
-    // color 0: black
-    fputc(0, writer.f.get());
-    fputc(0, writer.f.get());
-    fputc(0, writer.f.get());
-    // color 1: also black
-    fputc(0, writer.f.get());
-    fputc(0, writer.f.get());
-    fputc(0, writer.f.get());
-
-    if (delay != 0) {
-        // animation header
-        fputc(0x21, writer.f.get());          // extension
-        fputc(0xff, writer.f.get());          // application specific
-        fputc(11, writer.f.get());            // length 11
-        fputs("NETSCAPE2.0", writer.f.get()); // yes, really
-        fputc(3, writer.f.get());             // 3 bytes of NETSCAPE2.0 data
-
-        fputc(1, writer.f.get()); // JUST BECAUSE
-        fputc(0, writer.f.get()); // loop infinitely (byte 0)
-        fputc(0, writer.f.get()); // loop infinitely (byte 1)
-
-        fputc(0, writer.f.get()); // block terminator
-    }
-
-    return true;
-}
+// === Writer methods ===
 
 auto Writer::open(std::string const &filename, usize width, usize height,
                   usize delay, int bit_depth, bool dither)

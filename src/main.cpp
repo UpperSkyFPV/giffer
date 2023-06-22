@@ -1,12 +1,3 @@
-//
-// gif-h-demo.cpp
-// by Charlie Tangora
-// Public domain.
-// Email me : ctangora -at- gmail -dot- com
-//
-// Shows an example usage of gif.h
-//
-
 #include "gif.hpp"
 
 #include <cmath>
