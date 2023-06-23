@@ -1,5 +1,6 @@
 #include "gif.hpp"
 
+#include <cstring>
 #include <optional>
 #include <span>
 
