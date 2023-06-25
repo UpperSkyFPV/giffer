@@ -15,8 +15,8 @@ using uppr::gif::usize;
 using uppr::gif::Writer;
 
 auto example(std::string const &filename, int delay) -> int {
-    const auto width = 256UL;
-    const auto height = 256UL;
+    const auto width = 1024UL;
+    const auto height = 1024UL;
     std::array<u8, width * height * 4> image;
 
     auto set_pixel = [&](usize x, usize y, u8 red, u8 green, u8 blue) {
@@ -177,14 +177,15 @@ auto main(int argc, const char *argv[]) -> int {
 
         auto const p =
             static_cast<double>(frame) / static_cast<double>(total_frames);
-        printf("Writing frame %d/%zu... (%.02f%%)\n", frame, total_frames,
+        printf("Writing frame %d/%zu... (%.02f%%)\r", frame, total_frames,
                p * 100);
+        fflush(stdout);
         writer.write_frame(data.get(), w, h, delay, bit_depth, dither);
     }
 
     auto end = steady_clock::now();
     printf(
-        "done (%.02fms/frame)\n",
+        "\ndone (%.02fms/frame)\n",
         static_cast<double>(duration_cast<milliseconds>(end - start).count()) /
             static_cast<double>(input_files.size()));
 
