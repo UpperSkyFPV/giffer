@@ -14,7 +14,7 @@ using uppr::gif::u8;
 using uppr::gif::usize;
 using uppr::gif::Writer;
 
-auto example(std::string const &filename, int delay) -> int {
+auto example(std::string const &filename, int delay, int bit_depth) -> int {
     const auto width = 512UL;
     const auto height = 512UL;
     std::array<u8, width * height * 4> image;
@@ -40,7 +40,7 @@ auto example(std::string const &filename, int delay) -> int {
     auto start = steady_clock::now();
 
     // Create a gif
-    auto writer_ = Writer::open(filename, width, height, delay, 8, true);
+    auto writer_ = Writer::open(filename, width, height, delay, bit_depth, true);
     if (!writer_) {
         fprintf(stderr, "Error opening output file: %s\n", filename.c_str());
         return 1;
@@ -72,7 +72,7 @@ auto example(std::string const &filename, int delay) -> int {
         printf("Writing frame %zu/%d... (%.02f%%)\r", frame, total_frames,
                p * 100);
         fflush(stdout);
-        writer.write_frame(image.data(), width, height, delay, 8, true);
+        writer.write_frame(image.data(), width, height, delay, bit_depth, true);
     }
 
     auto end = steady_clock::now();
@@ -124,7 +124,7 @@ auto main(int argc, const char *argv[]) -> int {
 
     CLI11_PARSE(app, argc, argv);
 
-    if (gen_example) return example(output_file, delay);
+    if (gen_example) return example(output_file, delay, bit_depth);
 
     if (input_files.empty()) {
         fprintf(stderr, "--input-files requires at least one argument\n");
