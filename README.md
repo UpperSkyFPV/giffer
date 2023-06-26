@@ -37,3 +37,8 @@ folder with hundreds of frames from a video, labeled `frame-<n>.png`, where `n`
 is the frame number, `--numeric-sort` will find the `n` and use it to sort the
 frames. Please dont try to use it if the filename does not have a number in it.
 
+For example:
+
+```bash
+./build/giffer -i frames/* -o out.gif --numeric-sort
+```
