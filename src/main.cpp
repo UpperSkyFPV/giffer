@@ -15,8 +15,8 @@ using uppr::gif::usize;
 using uppr::gif::Writer;
 
 auto example(std::string const &filename, int delay) -> int {
-    const auto width = 1024UL;
-    const auto height = 1024UL;
+    const auto width = 512UL;
+    const auto height = 512UL;
     std::array<u8, width * height * 4> image;
 
     auto set_pixel = [&](usize x, usize y, u8 red, u8 green, u8 blue) {
@@ -36,6 +36,8 @@ auto example(std::string const &filename, int delay) -> int {
 
         set_pixel(xx, yy, red, grn, blu);
     };
+
+    auto start = steady_clock::now();
 
     // Create a gif
     auto writer_ = Writer::open(filename, width, height, delay, 8, true);
@@ -65,9 +67,18 @@ auto example(std::string const &filename, int delay) -> int {
         }
 
         // Write the frame to the gif
-        printf("Writing frame %zu/%d...\n", frame, total_frames);
+        auto const p =
+            static_cast<double>(frame) / static_cast<double>(total_frames);
+        printf("Writing frame %zu/%d... (%.02f%%)\r", frame, total_frames,
+               p * 100);
+        fflush(stdout);
         writer.write_frame(image.data(), width, height, delay, 8, true);
     }
+
+    auto end = steady_clock::now();
+    auto delta = duration_cast<milliseconds>(end - start).count();
+    printf("\ndone %lds (%.02fms/frame)\n", delta / 1000,
+           static_cast<double>(delta) / static_cast<double>(total_frames));
 
     // Write EOF (called on destructor)
     // writer.close();
@@ -98,13 +109,14 @@ auto main(int argc, const char *argv[]) -> int {
 
     bool dither = false;
     app.add_flag("--dither", dither,
-                 "Dither the image instead of performing a threshold");
+                 "Dither the image instead of performing a threshold")
+        ->default_val(false);
 
     bool gen_example = false;
     app.add_flag("--gen-example", gen_example, "Generate an example GIF file")
         ->default_val(false);
 
-    bool numeric_sort;
+    bool numeric_sort = false;
     app.add_flag(
            "--numeric-sort", numeric_sort,
            "Try to find a number in all filenames and sort the list by it")
@@ -154,7 +166,8 @@ auto main(int argc, const char *argv[]) -> int {
     }
 
     // Create a gif
-    auto writer_ = Writer::open(output_file, w, h, delay, bit_depth, dither);
+    auto writer_ =
+        Writer::open(output_file, w, h, delay, bit_depth, !dither);
     if (!writer_) {
         fprintf(stderr, "Error opening output file: %s\n", output_file.c_str());
         return 1;
@@ -163,7 +176,7 @@ auto main(int argc, const char *argv[]) -> int {
     auto writer = std::move(*writer_);
     auto frame = 0;
     auto const total_frames = input_files.size();
-    writer.write_frame(data.get(), w, h, delay, bit_depth, dither);
+    writer.write_frame(data.get(), w, h, delay, bit_depth, !dither);
 
     for (it++, frame++; it != input_files.end(); it++, frame++) {
         data = std::unique_ptr<stbi_uc[], void (*)(stbi_uc *)>{
@@ -180,14 +193,14 @@ auto main(int argc, const char *argv[]) -> int {
         printf("Writing frame %d/%zu... (%.02f%%)\r", frame, total_frames,
                p * 100);
         fflush(stdout);
-        writer.write_frame(data.get(), w, h, delay, bit_depth, dither);
+        writer.write_frame(data.get(), w, h, delay, bit_depth, !dither);
     }
 
     auto end = steady_clock::now();
-    printf(
-        "\ndone (%.02fms/frame)\n",
-        static_cast<double>(duration_cast<milliseconds>(end - start).count()) /
-            static_cast<double>(input_files.size()));
+    auto delta = duration_cast<milliseconds>(end - start).count();
+    printf("\ndone %lds (%.02fms/frame)\n", delta / 1000,
+           static_cast<double>(delta) /
+               static_cast<double>(input_files.size()));
 
     return 0;
 }
